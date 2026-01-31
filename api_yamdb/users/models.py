@@ -3,21 +3,18 @@ from django.db import models
 
 
 class User(AbstractUser):
-    """Модель пользователя с ролью, полем bio и уникальным email."""
+    """Кастомная модель пользователя для проекта YaMDb."""
 
-    # Константы ролей
     USER = 'user'
     MODERATOR = 'moderator'
     ADMIN = 'admin'
 
-    # Варианты ролей
     ROLE_CHOICES = (
         (USER, 'User'),
         (MODERATOR, 'Moderator'),
         (ADMIN, 'Admin'),
     )
 
-    # Роль пользователя
     role = models.CharField(
         max_length=20,
         choices=ROLE_CHOICES,
@@ -25,10 +22,14 @@ class User(AbstractUser):
         verbose_name='Роль пользователя'
     )
 
-    # Email должен быть уникальным по ТЗ
     email = models.EmailField(
         unique=True,
         verbose_name='Email'
+    )
+
+    bio = models.TextField(
+        blank=True,
+        verbose_name='Биография пользователя'
     )
 
     @property
@@ -42,5 +43,4 @@ class User(AbstractUser):
         return self.role == self.MODERATOR
 
     def __str__(self):
-        """Строковое представление пользователя."""
         return self.username
