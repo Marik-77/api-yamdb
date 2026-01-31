@@ -120,7 +120,7 @@ SIMPLE_JWT = {
     # Устанавливаем срок жизни токена
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'AUTH_HEADER_TYPES': ('Bearer',),
-} 
+}
 
 # пока не отправляем реальные письма!
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
