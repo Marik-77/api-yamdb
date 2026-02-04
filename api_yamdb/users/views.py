@@ -1,4 +1,6 @@
 from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
+from django.conf import settings
 from rest_framework import status, permissions, viewsets, filters
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,26 +14,34 @@ from users.permissions import IsAdmin
 
 
 class SignUpView(APIView):
-    """Регистрация пользователя и выдача confirmation_code."""
-
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         serializer = SignUpSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        user, _ = User.objects.get_or_create(
-            username=serializer.validated_data['username'],
-            email=serializer.validated_data['email']
+        username = serializer.validated_data['username']
+        email = serializer.validated_data['email']
+        user = serializer.validated_data['user_instance']
+
+        if user:
+            if user.email != email:
+                user.email = email
+                user.save()
+        else:
+            user = User.objects.create(username=username, email=email)
+
+        confirmation_code = default_token_generator.make_token(user)
+
+        send_mail(
+            subject='Код подтверждения YaMDb',
+            message=f'Ваш код подтверждения: {confirmation_code}',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
         )
 
-        default_token_generator.make_token(user)
-
         return Response(
-            {
-                "username": user.username,
-                "email": user.email,
-            },
+            {"username": user.username, "email": user.email},
             status=status.HTTP_200_OK
         )
 
@@ -96,6 +106,7 @@ class UserViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ['username']
     pagination_class = PageNumberPagination
+    http_method_names = ['get', 'post', 'patch', 'delete']
 
     @action(
         detail=False,
