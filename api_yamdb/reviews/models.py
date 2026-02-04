@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Avg
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, MaxValueValidator
 
@@ -37,3 +38,77 @@ class Review(models.Model):
         verbose_name='Дата публицации',
         auto_now_add=True
     )
+
+    class Meta:
+        verbose_name = 'Отзыв'
+        verbose_name_plural = 'Отзывы'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['title', 'author'],
+                name='unique_review_per_title_author'
+            )
+        ]
+        ordering = ['-pub_date']
+
+    def __str__(self):
+        return f'Отзыв {self.author} на {self.title}'
+
+    def save(self, *args, **kwargs):
+        """Сохраняет отзыв и обновляет рейтинг произведения."""
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        self._update_title_rating()
+
+    def delete(self, *args, **kwargs):
+        """Удаляет отзыв и обновляет рейтинг произведения."""
+        title_id = self.title_id
+        super().delete(*args, **kwargs)
+        self._update_title_rating(title_id)
+
+    def _update_title_rating(self, title_id=None):
+        """Обновляет рейтинг произведения."""
+        if title_id is None:
+            title_id = self.title_id
+        avg_result = Review.objects.filter(
+            title_id=title_id
+        ).aggregate(avg_score=Avg('score'))
+        
+        avg_score = avg_result['avg_score']
+        if avg_score is not None:
+            rating_value = round(avg_score)
+        else:
+            rating_value = None
+        Title.objects.filter(pk=title_id).update(rating=rating_value)
+
+
+class Comment(models.Model):
+    """Модель комментария к отзыву."""
+
+    review = models.ForeignKey(
+        Review,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        verbose_name='Отзыв'
+    )
+    text = models.TextField(
+        verbose_name='Текст комментария',
+        help_text='Напишите текст комментария'
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        verbose_name='Автор'
+    )
+    pub_date = models.DateTimeField(
+        verbose_name='Дата публикации',
+        auto_now_add=True
+    )
+
+    class Meta:
+        verbose_name = 'Комментарий'
+        verbose_name_plural = 'Комментарии'
+        ordering = ['-pub_date']
+
+    def __str__(self):
+        return f'Комментарий {self.author} к отзыву {self.review.id}'

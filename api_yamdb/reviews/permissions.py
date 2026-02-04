@@ -20,3 +20,7 @@ class IsAuthorReadOnly(permissions.BasePermission):
 
 class IsReviewAuthorOrReadOnly(IsAuthorReadOnly):
     """Для отзывов - проверяем автора отзыва."""
+
+
+class IsCommentAuthorOrReadOnly(IsAuthorReadOnly):
+    """Для комментариев - проверяем автора комментария."""

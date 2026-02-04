@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.core.validators import MinValueValidator, MaxValueValidator
 
-from reviews.models import Review
+from reviews.models import Review, Comment
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -36,8 +36,21 @@ class ReviewSerializer(serializers.ModelSerializer):
         if request and view and request.method == 'POST':
             title_id = view.kwargs.get('title_id')
             user = request.user
-            if Review.objects.filter(title_id=title_id, author=user).exists(): #???
+            if Review.objects.filter(title_id=title_id, author=user).exists():
                 raise serializers.ValidationError(
                     'Вы уже оставляли отзыв на это произведение'
                 )
         return data
+    
+
+class CommentSerializer(serializers.ModelSerializer):
+    author = serializers.SlugRelatedField(
+        slug_field='username',
+        read_only=True,
+        default=serializers.CurrentUserDefault()
+    )
+
+    class Meta:
+        model = Comment
+        fields = ('id', 'text', 'author', 'pub_date')
+        read_only_fields = ('id', 'author', 'pub_date')
