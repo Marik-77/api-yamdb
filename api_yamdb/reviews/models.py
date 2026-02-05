@@ -1,115 +1,190 @@
-from django.apps import apps
-from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.db.models import Avg
+from django.utils import timezone
+
+from api.utils import (CAT_GENRE_NAME, EMAIL_MAX_LENGTH, LIMIT, MAX_LENGTH_255,
+                       MAX_SCORE, MIN_SCORE, NAME_MAX_LENGTH)
+from reviews.validators import validate_username, validate_year
+
+USER = 'user'
+ADMIN = 'admin'
+MODERATOR = 'moderator'
+
+CHOICES = [
+    (USER, USER),
+    (ADMIN, ADMIN),
+    (MODERATOR, MODERATOR),
+]
 
 
-User = get_user_model()
+class User(AbstractUser):
+    username = models.CharField(
+        verbose_name='юзернейм',
+        max_length=NAME_MAX_LENGTH,
+        validators=[validate_username],
+        unique=True)
+    email = models.EmailField(
+        verbose_name='почта',
+        max_length=EMAIL_MAX_LENGTH,
+        unique=True)
+    role = models.CharField(
+        choices=CHOICES,
+        max_length=MAX_LENGTH_255,
+        default=USER)
+    bio = models.TextField('Биография', blank=True)
+    first_name = models.CharField(
+        verbose_name='Имя', max_length=NAME_MAX_LENGTH,)
+    last_name = models.CharField(
+        verbose_name='Фамилия', max_length=NAME_MAX_LENGTH,)
+
+    @property
+    def is_admin(self):
+        return self.role == ADMIN or self.is_staff
+
+    @property
+    def is_moderator(self):
+        return self.role == MODERATOR
+
+    class Meta:
+        ordering = ['username',]
+        verbose_name = 'Пользователь'
+        verbose_name_plural = 'Пользователи'
+
+    def __str__(self):
+        return self.username
 
 
-class Review(models.Model):
-    """Модель отзыва на произведение."""
+class AbstractModel(models.Model):
+    name = models.CharField(
+        max_length=CAT_GENRE_NAME,
+        null=False,
+        verbose_name='Имя категории')
+    slug = models.SlugField(
+        unique=True,
+        null=False,
+        verbose_name='слаг категории')
 
-    title = models.ForeignKey(
-        'titles.Title',  # Ленивое обращение к модели Title в другом приложении
-        on_delete=models.CASCADE,
-        related_name='reviews',
-        verbose_name='Произведение'
+    def __str__(self):
+        return self.slug
+
+    class Meta:
+        abstract = True
+        ordering = ['name',]
+
+
+class Category(AbstractModel):
+    class Meta(AbstractModel.Meta):
+        verbose_name = 'Категория'
+        verbose_name_plural = 'Категории'
+
+
+class Genre(AbstractModel):
+    class Meta(AbstractModel.Meta):
+        verbose_name = 'Жанр'
+        verbose_name_plural = 'Жанры'
+
+
+class Title(models.Model):
+
+    name = models.TextField(verbose_name='Название произведения')
+    year = models.SmallIntegerField(
+        verbose_name='Год выхода',
+        validators=[validate_year],
     )
+    description = models.TextField(
+        null=True,
+        verbose_name='Описание'
+    )
+    genre = models.ManyToManyField(Genre,
+                                   verbose_name='жанр',
+                                   blank=False,
+                                   )
+    category = models.ForeignKey(
+        Category,
+        verbose_name='Категория',
+        on_delete=models.SET_NULL,
+        null=True,
+    )
+
+    class Meta:
+        default_related_name = 'titles'
+        verbose_name = 'Произведение'
+        verbose_name_plural = 'Произведения'
+        ordering = ['-year']
+
+    def __str__(self):
+        return self.name
+
+
+class CommentReviewAbstractModel(models.Model):
     text = models.TextField(
-        verbose_name='Текст отзыва',
-        help_text='Напишите текст отзыва'
+        verbose_name='Текст',
     )
+
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='reviews',
-        verbose_name='Автор'
+        verbose_name='Автор',
     )
+
+    pub_date = models.DateTimeField(
+        verbose_name='Дата публикации',
+        default=timezone.now,
+    )
+
+    class Meta:
+        abstract = True
+        ordering = ['-pub_date',]
+
+
+class Review(CommentReviewAbstractModel):
     score = models.PositiveSmallIntegerField(
         verbose_name='Оценка',
         validators=[
-            MinValueValidator(1, message='Оценка не может быть меньше 1'),
-            MaxValueValidator(10, message='Оценка не может быть больше 10'),
-        ]
-    )
-    pub_date = models.DateTimeField(
-        verbose_name='Дата публицации',
-        auto_now_add=True
+            MinValueValidator(
+                MIN_SCORE,
+                message=f'Оценка не может быть меньше {MIN_SCORE}'),
+            MaxValueValidator(
+                MAX_SCORE,
+                message=f'Оценка не может быть больше {MAX_SCORE}')
+        ],
     )
 
-    class Meta:
+    title = models.ForeignKey(
+        Title,
+        verbose_name='Произведение',
+        on_delete=models.CASCADE,
+        blank=True
+    )
+
+    class Meta(CommentReviewAbstractModel.Meta):
+        default_related_name = 'reviews'
         verbose_name = 'Отзыв'
         verbose_name_plural = 'Отзывы'
-        constraints = [
+        constraints = (
             models.UniqueConstraint(
-                fields=['title', 'author'],
-                name='unique_review_per_title_author'
-            )
-        ]
-        ordering = ['-pub_date']
+                fields=('author', 'title'),
+                name='unique_follow'
+            ),)
 
     def __str__(self):
-        return f'Отзыв {self.author} на {self.title}'
-
-    def save(self, *args, **kwargs):
-        """Сохраняет отзыв и обновляет рейтинг произведения."""
-        super().save(*args, **kwargs)
-        self._update_title_rating()
-
-    def delete(self, *args, **kwargs):
-        """Удаляет отзыв и обновляет рейтинг произведения."""
-        title_id = self.title_id
-        super().delete(*args, **kwargs)
-        self._update_title_rating(title_id)
-
-    def _update_title_rating(self, title_id=None):
-        """Обновляет рейтинг произведения."""
-        if title_id is None:
-            title_id = self.title_id
-        avg_result = Review.objects.filter(
-            title_id=title_id
-        ).aggregate(avg_score=Avg('score'))
-
-        avg_score = avg_result['avg_score']
-        if avg_score is not None:
-            rating_value = round(avg_score)
-        else:
-            rating_value = None
-
-        title_model = apps.get_model('titles', 'Title')
-        title_model.objects.filter(pk=title_id).update(rating=rating_value)
+        return (f'Отзыв {self.author.username}'
+                f' на {self.title.name}: ({self.score}/10)')
 
 
-class Comment(models.Model):
-    """Модель комментария к отзыву."""
-
+class Comment(CommentReviewAbstractModel):
     review = models.ForeignKey(
         Review,
+        verbose_name='Отзыв',
         on_delete=models.CASCADE,
-        related_name='comments',
-        verbose_name='Отзыв'
-    )
-    text = models.TextField(
-        verbose_name='Текст комментария',
-        help_text='Напишите текст комментария'
-    )
-    author = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='comments',
-        verbose_name='Автор'
-    )
-    pub_date = models.DateTimeField(
-        verbose_name='Дата публикации',
-        auto_now_add=True
     )
 
-    class Meta:
-        verbose_name = 'Комментарий'
-        verbose_name_plural = 'Комментарии'
-        ordering = ['-pub_date']
+    class Meta(CommentReviewAbstractModel.Meta):
+        default_related_name = 'comments'
+        verbose_name = 'коммент'
+        verbose_name_plural = 'комменты'
 
     def __str__(self):
-        return f'Комментарий {self.author} к отзыву {self.review.id}'
+        return (f'Коммент {self.author.username}'
+                f' к обзору "{self.review.text[:LIMIT]}" ')
