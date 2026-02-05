@@ -5,7 +5,7 @@ from django.db import models
 from django.db.models import Avg
 
 
-User = get_user_model()  # В последующем будет использоваться кастомная модель User
+User = get_user_model()
 
 
 class Review(models.Model):
@@ -113,3 +113,4 @@ class Comment(models.Model):
 
     def __str__(self):
         return f'Комментарий {self.author} к отзыву {self.review.id}'
+    
