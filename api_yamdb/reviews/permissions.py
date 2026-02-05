@@ -29,4 +29,3 @@ class IsReviewAuthorOrReadOnly(IsAuthorReadOnly):
 
 class IsCommentAuthorOrReadOnly(IsAuthorReadOnly):
     """Для комментариев - проверяем автора комментария."""
-    
