@@ -1,7 +1,8 @@
+from django.apps import apps
+from django.contrib.auth import get_user_model
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Avg
-from django.contrib.auth import get_user_model
-from django.core.validators import MinValueValidator, MaxValueValidator
 
 User = get_user_model() #В последующем будет использоваться кастомная модель User
 
@@ -9,7 +10,7 @@ class Review(models.Model):
     """Модель отзыва на произведение."""
 
     title = models.ForeignKey(
-        Title,  # Модель описана разработчиком 2
+        'titles.Title',  # ленивое обращение к модели Title в другом приложении
         on_delete=models.CASCADE,
         related_name='reviews',
         verbose_name='Произведение'
@@ -25,14 +26,11 @@ class Review(models.Model):
         verbose_name='Автор'
     )
     score = models.PositiveSmallIntegerField(
-        MinValueValidator(
-            1,
-            message='Оценка не может быть меньше 1'
-        ),
-        MaxValueValidator(
-            10,
-            message='Оценка не может быть больше 10'
-        )
+        verbose_name='Оценка',
+        validators=[
+            MinValueValidator(1, message='Оценка не может быть меньше 1'),
+            MaxValueValidator(10, message='Оценка не может быть больше 10'),
+        ]
     )
     pub_date = models.DateTimeField(
         verbose_name='Дата публицации',
@@ -55,7 +53,6 @@ class Review(models.Model):
 
     def save(self, *args, **kwargs):
         """Сохраняет отзыв и обновляет рейтинг произведения."""
-        is_new = self.pk is None
         super().save(*args, **kwargs)
         self._update_title_rating()
 
@@ -78,6 +75,7 @@ class Review(models.Model):
             rating_value = round(avg_score)
         else:
             rating_value = None
+        Title = apps.get_model('titles', 'Title')
         Title.objects.filter(pk=title_id).update(rating=rating_value)
 
 

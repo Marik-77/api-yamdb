@@ -1,17 +1,16 @@
+from django.core.validators import MaxValueValidator, MinValueValidator
 from rest_framework import serializers
-from django.core.validators import MinValueValidator, MaxValueValidator
-
-from reviews.models import Review, Comment
+from reviews.models import Comment, Review
 
 
 class ReviewSerializer(serializers.ModelSerializer):
     author = serializers.SlugRelatedField(
-        slug_field = 'user_name',
-        read_only = True,
-        default = serializers.CurrentUserDefault()
+        slug_field='username',
+        read_only=True,
+        default=serializers.CurrentUserDefault()
     )
     score = serializers.IntegerField(
-        validators = [
+        validators=[
             MinValueValidator(1, 'Оценка не может быть меньше 1'),
             MaxValueValidator(10, 'Оценка не может быть больше 10')
         ]
@@ -20,16 +19,13 @@ class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
         fields = ('id', 'text', 'author', 'score', 'pub_date')
-        read_only_field = ('id', 'author', 'pub_date') # уточнить поля
+        read_only_fields = ('id', 'author', 'pub_date')
 
     def validate(self, data):
         """
-        Проверка отзыва.
-        
-        Проверят, что пользователь оставил только один отзыв
-        на произведение.
+        Проверка отзыва: пользователь может оставить только один отзыв
+        на одно произведение.
         """
-
         request = self.context.get('request')
         view = self.context.get('view')
 
@@ -41,7 +37,7 @@ class ReviewSerializer(serializers.ModelSerializer):
                     'Вы уже оставляли отзыв на это произведение'
                 )
         return data
-    
+
 
 class CommentSerializer(serializers.ModelSerializer):
     author = serializers.SlugRelatedField(
