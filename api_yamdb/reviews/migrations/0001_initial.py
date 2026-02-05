@@ -2,7 +2,7 @@
 
 from django.conf import settings
 from django.db import migrations, models
-import django.db.models.validators
+import django.db.models.deletion
 import django.core.validators
 
 
@@ -21,8 +21,14 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('text', models.TextField(help_text='Напишите текст отзыва', verbose_name='Текст отзыва')),
-                ('score', models.PositiveSmallIntegerField(validators=[django.core.validators.MinValueValidator(1, message='Оценка не может быть меньше 1'), django.core.validators.MaxValueValidator(10, message='Оценка не может быть больше 10')], verbose_name='Оценка')),
-                ('pub_date', models.DateTimeField(auto_now_add=True, verbose_name='Дата публицации')),
+                ('score', models.PositiveSmallIntegerField(
+                    verbose_name='Оценка',
+                    validators=[
+                        django.core.validators.MinValueValidator(1, message='Оценка не может быть меньше 1'),
+                        django.core.validators.MaxValueValidator(10, message='Оценка не может быть больше 10'),
+                    ]
+                )),
+                ('pub_date', models.DateTimeField(auto_now_add=True, verbose_name='Дата публикации')),
                 ('author', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='reviews', to=settings.AUTH_USER_MODEL, verbose_name='Автор')),
                 ('title', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='reviews', to='titles.title', verbose_name='Произведение')),
             ],
