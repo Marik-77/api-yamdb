@@ -21,7 +21,7 @@ class IsAuthorReadOnly(permissions.BasePermission):
             or getattr(user, 'is_admin', False)
             or getattr(user, 'is_moderator', False)
         )
-    
+
 
 class IsReviewAuthorOrReadOnly(IsAuthorReadOnly):
     """Для отзывов - проверяем автора отзыва."""

@@ -4,13 +4,15 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Avg
 
-User = get_user_model() #В последующем будет использоваться кастомная модель User
+
+User = get_user_model()  # В последующем будет использоваться кастомная модель User
+
 
 class Review(models.Model):
     """Модель отзыва на произведение."""
 
     title = models.ForeignKey(
-        'titles.Title',  # ленивое обращение к модели Title в другом приложении
+        'titles.Title',  # Ленивое обращение к модели Title в другом приложении
         on_delete=models.CASCADE,
         related_name='reviews',
         verbose_name='Произведение'
@@ -69,14 +71,15 @@ class Review(models.Model):
         avg_result = Review.objects.filter(
             title_id=title_id
         ).aggregate(avg_score=Avg('score'))
-        
+
         avg_score = avg_result['avg_score']
         if avg_score is not None:
             rating_value = round(avg_score)
         else:
             rating_value = None
-        Title = apps.get_model('titles', 'Title')
-        Title.objects.filter(pk=title_id).update(rating=rating_value)
+
+        title_model = apps.get_model('titles', 'Title')
+        title_model.objects.filter(pk=title_id).update(rating=rating_value)
 
 
 class Comment(models.Model):
