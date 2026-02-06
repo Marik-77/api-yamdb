@@ -38,14 +38,6 @@ class User(AbstractUser):
     last_name = models.CharField(
         verbose_name='Фамилия', max_length=NAME_MAX_LENGTH,)
 
-    @property
-    def is_admin(self):
-        return self.role == ADMIN or self.is_staff
-
-    @property
-    def is_moderator(self):
-        return self.role == MODERATOR
-
     class Meta:
         ordering = ['username',]
         verbose_name = 'Пользователь'
@@ -54,15 +46,21 @@ class User(AbstractUser):
     def __str__(self):
         return self.username
 
+    @property
+    def is_admin(self):
+        return self.role == ADMIN or self.is_staff
+
+    @property
+    def is_moderator(self):
+        return self.role == MODERATOR
+
 
 class AbstractModel(models.Model):
     name = models.CharField(
         max_length=CAT_GENRE_NAME,
-        null=False,
         verbose_name='Имя категории')
     slug = models.SlugField(
         unique=True,
-        null=False,
         verbose_name='слаг категории')
 
     def __str__(self):
@@ -97,9 +95,7 @@ class Title(models.Model):
         verbose_name='Описание'
     )
     genre = models.ManyToManyField(Genre,
-                                   verbose_name='жанр',
-                                   blank=False,
-                                   )
+                                   verbose_name='жанр')
     category = models.ForeignKey(
         Category,
         verbose_name='Категория',

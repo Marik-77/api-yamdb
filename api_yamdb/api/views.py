@@ -96,20 +96,23 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class CategoryViewSet(mixins.ListModelMixin,
+class CatGenreViewSet(mixins.ListModelMixin,
                       mixins.CreateModelMixin,
                       mixins.DestroyModelMixin,
                       viewsets.GenericViewSet):
     pagination_class = PageNumberPagination
-    serializer_class = CategorySerializer
     permission_classes = (IsAdminOrReadOnly,)
-    queryset = Category.objects.all()
     filter_backends = (filters.SearchFilter,)
     search_fields = ('name', )
     lookup_field = 'slug'
 
 
-class GenreViewSet(CategoryViewSet):
+class CategoryViewSet(CatGenreViewSet):
+    serializer_class = CategorySerializer
+    queryset = Category.objects.all()
+
+
+class GenreViewSet(CatGenreViewSet):
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
 

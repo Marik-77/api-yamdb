@@ -13,8 +13,8 @@ from .utils import (EMAIL_MAX_LENGTH, MAX_LENGTH_255, NAME_MAX_LENGTH,
 
 
 class UserSerializer(serializers.ModelSerializer, ValidateUsername):
-    username = serializers.CharField(max_length=NAME_MAX_LENGTH, required=True)
-    email = serializers.EmailField(max_length=EMAIL_MAX_LENGTH, required=True)
+    username = serializers.CharField(max_length=NAME_MAX_LENGTH)
+    email = serializers.EmailField(max_length=EMAIL_MAX_LENGTH)
     first_name = serializers.CharField(
         max_length=NAME_MAX_LENGTH,
         required=False)
@@ -65,8 +65,8 @@ class UserSerializer(serializers.ModelSerializer, ValidateUsername):
 
 
 class RegisterSerializer(serializers.Serializer, ValidateUsername):
-    username = serializers.CharField(max_length=NAME_MAX_LENGTH, required=True)
-    email = serializers.EmailField(max_length=EMAIL_MAX_LENGTH, required=True)
+    username = serializers.CharField(max_length=NAME_MAX_LENGTH)
+    email = serializers.EmailField(max_length=EMAIL_MAX_LENGTH)
 
     def validate(self, data):
 
@@ -86,19 +86,18 @@ class RegisterSerializer(serializers.Serializer, ValidateUsername):
             return data
         if User.objects.filter(username=username).exists():
             raise serializers.ValidationError(
-                ["Пользователь с таким именем уже существует."])
+                ['Пользователь с таким именем уже существует.'])
         if User.objects.filter(email=email).exists():
             raise serializers.ValidationError(
-                ["Пользователь с такой почтой уже существует."])
+                ['Пользователь с такой почтой уже существует.'])
         data['exists'] = False
         return data
 
 
 class TokenSerializer(serializers.Serializer):
-    username = serializers.CharField(max_length=NAME_MAX_LENGTH, required=True)
+    username = serializers.CharField(max_length=NAME_MAX_LENGTH)
     confirmation_code = serializers.CharField(
-        max_length=MAX_LENGTH_255,
-        required=True)
+        max_length=MAX_LENGTH_255)
 
     class Meta:
         fields = ('username', 'confirmation_code')
